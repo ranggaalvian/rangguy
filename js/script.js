@@ -296,4 +296,78 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
   });
 });
 
+// =====================================================
+// 10. SUPABASE INTEGRATION
+// =====================================================
+// Load Supabase SDK
+const supabaseScript = document.createElement('script');
+supabaseScript.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+supabaseScript.onload = async () => {
+  console.log('Supabase SDK loaded');
+  
+  // Initialize Supabase client
+  // Ganti URL dan KEY dengan kredensial Supabase Anda
+  const SUPABASE_URL = 'https://YOUR_PROJECT.supabase.co';
+  const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
+  
+  if (window.supabase) {
+    window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log('Supabase initialized');
+    
+    // Sync tasks dengan Supabase
+    try {
+      const { data, error } = await window.supabase
+        .from('tasks')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.warn('Supabase sync failed (maybe table not created yet):', error);
+      } else if (data && data.length > 0) {
+        console.log('Tasks synced from Supabase:', data);
+        // Logika sync bisa dikembangkan lebih lanjut
+      }
+    } catch (err) {
+      console.error('Supabase initialization error:', err);
+    }
+  }
+};
+document.head.appendChild(supabaseScript);
+
+// Export Supabase client globally
+window.getSupabase = async () => {
+  if (window.supabase) return window.supabase;
+  
+  await new Promise(resolve => {
+    const checkInterval = setInterval(() => {
+      if (window.supabase) {
+        clearInterval(checkInterval);
+        resolve();
+      }
+    }, 100);
+  });
+  return window.supabase;
+};
+
+// Example: Save task to Supabase
+async function saveTaskToSupabase(taskData) {
+  const supabase = await window.getSupabase();
+  if (!supabase) {
+    console.warn('Supabase not initialized, using local storage');
+    return { success: false, message: 'Supabase not configured' };
+  }
+  
+  const { data, error } = await supabase
+    .from('tasks')
+    .insert([taskData]);
+  
+  if (error) {
+    console.error('Error saving to Supabase:', error);
+    return { success: false, error };
+  }
+  
+  console.log('Task saved to Supabase:', data);
+  return { success: true, data };
+}
+
 console.log('Script loaded successfully!');
